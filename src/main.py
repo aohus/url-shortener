@@ -38,8 +38,7 @@ class URLCreateResponse(BaseModel):
 def create_short_url(request: URLCreateRequest):
     session = get_session()
     repo = SqlAlchemyRepository(session)
-    # TODO: get? 이름 고민 get_or_create
-    short_key = services.get_short_key(request.url, request.expired_at, repo)
+    short_key = services.generate_short_key(request.url, request.expired_at, repo)
     short_url = f"http://0.0.0.0:8000/{short_key}"
     return URLCreateResponse(short_url=short_url)
 

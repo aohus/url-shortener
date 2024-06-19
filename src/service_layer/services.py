@@ -5,7 +5,7 @@ from adapters.repository import SqlAlchemyRepository
 from domain import model
 
 
-def get_short_key(
+def generate_short_key(
     original_url: str, expired_at: Optional[datetime], repo: SqlAlchemyRepository
 ):
     result = repo.get(original_url=original_url)
