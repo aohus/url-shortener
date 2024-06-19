@@ -23,7 +23,11 @@ class SqlAlchemyRepository(AbstractRepository):
     def get(self, **kwargs: dict[str, Any]):
         for key, value in kwargs.items():
             if hasattr(model.URL, key):
-                return self.session.query(model.URL).filter(key == value).first()
+                return (
+                    self.session.query(model.URL)
+                    .filter(getattr(model.URL, key) == value)
+                    .first()
+                )
         raise ValueError("No valid key found in kwargs")
 
     def add(self, **kwargs: dict[str, Any]):
