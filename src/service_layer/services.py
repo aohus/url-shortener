@@ -2,6 +2,10 @@ import string
 import threading
 import time
 
+from adapter.repository import SqlAlchemyRepository
+from domain import model
+from sqlalchemy.orm import Session
+
 
 class IdGenerator:
     def __init__(self, node_id: int, epoch: int = 1609459200000):
@@ -71,7 +75,17 @@ node_id = 1  # Assign a unique node ID to each generator instance
 generator = IdGenerator(node_id=node_id)
 
 
-def generate_short_key():
+def generate_short_key(original_url: str, repo: SqlAlchemyRepository, session: Session):
     id = generator.generate_id()
-    short_url = encode_base62(id)
-    return short_url
+    short_key = encode_base62(id)
+    model.url(original_url, short_key)
+    session.commit()
+    return short_key
+
+
+def get_short_key(original_url: str, repo: SqlAlchemyRepository, session: Session):
+    short_key = repo.get(original_url=original_url)
+    if short_key:
+        return short_key
+    generate_short_key(original_url, repo, session)
+    return short_key
