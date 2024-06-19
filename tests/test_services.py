@@ -22,7 +22,15 @@ class FakeRepository(repository.AbstractRepository):
     def get(self, **kwargs):
         for key, value in kwargs.items():
             if key in ("original_url", "short_key"):
-                url_data = [e for e in self._url if e.get(key) == value]
+                url_data = [
+                    e
+                    for e in self._url
+                    if e.get(key) == value
+                    and (
+                        e.get("expired_at") is None
+                        or e.get("expired_at") > datetime.utcnow()
+                    )
+                ]
                 if url_data:
                     return model.URL(**url_data[0])
                 return None
