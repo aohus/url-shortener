@@ -8,7 +8,7 @@ RUN pip install poetry
 WORKDIR /app
 
 # Copy the pyproject.toml and poetry.lock files
-COPY pyproject.toml poetry.lock ./
+COPY pyproject.toml poetry.lock .env config.py ./
 
 # Install the dependencies
 RUN poetry install --no-root
