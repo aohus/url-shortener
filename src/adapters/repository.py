@@ -1,4 +1,5 @@
 import abc
+from datetime import datetime
 from typing import Any
 
 from domain import model
@@ -25,7 +26,13 @@ class SqlAlchemyRepository(AbstractRepository):
             if hasattr(model.URL, key):
                 return (
                     self.session.query(model.URL)
-                    .filter(getattr(model.URL, key) == value)
+                    .filter(
+                        getattr(model.URL, key) == value,
+                        (
+                            model.URL.expired_at.is_(None)
+                            | (model.URL.expired_at > datetime.utcnow())
+                        ),
+                    )
                     .first()
                 )
         raise ValueError("No valid key found in kwargs")

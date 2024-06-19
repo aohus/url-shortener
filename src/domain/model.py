@@ -4,8 +4,6 @@ import time
 from datetime import datetime
 from typing import Optional
 
-# from adapters.repository import SqlAlchemyRepository
-
 
 class URL:
     def __init__(
