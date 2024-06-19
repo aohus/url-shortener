@@ -14,11 +14,9 @@ COPY pyproject.toml poetry.lock ./
 RUN poetry install --no-root
 
 # Copy the application code into the container
-COPY src/ src/
-COPY tests/ tests/
-
+COPY src/ ./
 # Expose the port the app runs on
 EXPOSE 8000
 
 # Run the FastAPI application
-CMD ["poetry", "run", "uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["poetry", "run", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
