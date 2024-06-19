@@ -1,6 +1,5 @@
 import abc
-import logging
-from typing import Any, Optional
+from typing import Any
 
 from domain import model
 from sqlalchemy.orm import Session
@@ -21,21 +20,13 @@ class SqlAlchemyRepository(AbstractRepository):
     def __init__(self, session: Session):
         self.session = session
 
-    def get_by_key(self, key: str, value: Any) -> model.URL:
-        result = (
-            self.session.query(model.URL)
-            .filter(getattr(model.URL, key) == value)
-            .first()
-        )
-        return result
-
-    def get(self, **kwargs: dict[str, Any]) -> model.URL:
+    def get(self, **kwargs: dict[str, Any]):
         for key, value in kwargs.items():
             if hasattr(model.URL, key):
-                return self.get_by_key(key, value)
+                return self.session.query(model.URL).filter(key == value).first()
         raise ValueError("No valid key found in kwargs")
 
-    def add(self, **kwargs: dict[str, Any]) -> model.URL:
+    def add(self, **kwargs: dict[str, Any]):
         url_data = {
             key: value for key, value in kwargs.items() if hasattr(model.URL, key)
         }
@@ -46,3 +37,8 @@ class SqlAlchemyRepository(AbstractRepository):
         self.session.add(new_url)
         self.session.commit()
         self.session.refresh(new_url)
+
+    def update(self, url: model.URL):
+        self.session.commit()
+        self.session.refresh(url)
+        return url
