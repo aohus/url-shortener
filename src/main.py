@@ -50,6 +50,6 @@ def redirect_to_original(short_key: str):
     repo = SqlAlchemyRepository(session)
     try:
         original_url = services.get_original_url(short_key, repo)
-    except:
-        raise HTTPException(status_code=404, detail="URL not found")
+    except services.URLNotExist as e:
+        raise HTTPException(status_code=404, detail=str(e))
     return RedirectResponse(url=original_url, status_code=301)

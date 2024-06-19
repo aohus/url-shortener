@@ -5,6 +5,10 @@ from adapters.repository import SqlAlchemyRepository
 from domain import model
 
 
+class URLNotExist(Exception):
+    pass
+
+
 def generate_short_key(
     original_url: str, expired_at: Optional[datetime], repo: SqlAlchemyRepository
 ):
@@ -19,5 +23,4 @@ def get_original_url(short_key: str, repo: SqlAlchemyRepository):
     result = repo.get(short_key=short_key)
     if result:
         return result.original_url
-    # TODO: raise URLNotExist
-    raise
+    raise URLNotExist(f"no url for short key '{short_key}'")
