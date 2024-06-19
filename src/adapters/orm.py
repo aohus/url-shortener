@@ -1,14 +1,21 @@
-from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from domain import model
+from sqlalchemy import Column, Date, Integer, MetaData, String, Table
+from sqlalchemy.orm import mapper
 
-DATABASE_URL = "sqlite:///./url_shortener.db"
-engine = create_engine(
-    # connect_args={"check_same_thread": False} for sqlite
-    DATABASE_URL,
-    connect_args={"check_same_thread": False},
+metadata = MetaData()
+
+url = Table(
+    "url",
+    metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("original_url", String, index=True),
+    Column("short_key", String, index=True),
+    # Column("create_at", Date),
 )
 
-Session = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-Base = declarative_base()
+def start_mappers():
+    mapper(
+        model.URL,
+        url,
+    )

@@ -3,12 +3,7 @@ import logging
 from typing import Any, Optional
 
 from domain import model
-from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
-
-# 데이터베이스 설정
-DATABASE_URL = "sqlite:///./url_shortener.db"
-engine = create_engine(DATABASE_URL)
 
 
 class AbstractRepository(abc.ABC):
@@ -32,7 +27,6 @@ class SqlAlchemyRepository(AbstractRepository):
             .filter(getattr(model.URL, key) == value)
             .first()
         )
-        logging.info(result)
         return result
 
     def get(self, **kwargs: dict[str, Any]) -> model.URL:
@@ -52,4 +46,3 @@ class SqlAlchemyRepository(AbstractRepository):
         self.session.add(new_url)
         self.session.commit()
         self.session.refresh(new_url)
-        return new_url

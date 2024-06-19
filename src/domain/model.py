@@ -1,11 +1,7 @@
-from adapters.orm import Base
-from sqlalchemy import Column, Integer, String
+from dataclasses import dataclass
 
 
-# URL model
-class URL(Base):
-    __tablename__ = "url"
-
-    id: int = Column(Integer, primary_key=True)
-    original_url: str = Column(String, index=True)
-    short_key: str = Column(String, index=True)
+class URL:
+    def __init__(self, original_url: str, short_key: str):
+        self.original_url = original_url
+        self.short_key = short_key
