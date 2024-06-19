@@ -1,10 +1,10 @@
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Union
 
 import config
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import RedirectResponse
-from pydantic import BaseModel, HttpUrl
+from pydantic import BaseModel, HttpUrl, validator
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -26,7 +26,21 @@ app = FastAPI()
 
 class URLCreateRequest(BaseModel):
     url: HttpUrl
-    expired_at: Optional[datetime] = None
+    expired_at: Optional[Union[datetime, str]] = None
+
+    @validator("expired_at", pre=True, always=True)
+    def parse_expired_at(cls, v):
+        if isinstance(v, str):
+            try:
+                return datetime.fromisoformat(v)
+            except ValueError:
+                try:
+                    return datetime.strptime(v, "%Y-%m-%d")
+                except ValueError:
+                    raise ValueError(
+                        "Invalid date format. Use ISO 8601 or YYYY-MM-DD format."
+                    )
+        return v
 
 
 class URLCreateResponse(BaseModel):
