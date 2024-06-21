@@ -14,6 +14,7 @@ class URL:
         self.created_at = datetime.utcnow()
         self.modified_at = datetime.utcnow()
         self.expired_at = expired_at
+        self.views = 0
 
     def update_modified_at(self):
         self.modified_at = datetime.utcnow()
@@ -81,14 +82,3 @@ def encode_base62(num: int) -> str:
         num, rem = divmod(num, 62)
         base62.append(BASE62_ALPHABET[rem])
     return "".join(reversed(base62))
-
-
-node_id = 1  # Assign a unique node ID to each generator instance
-generator = IdGenerator(node_id=node_id)
-
-
-def generate_short_key(original_url: str, expired_at: Optional[datetime], repo):
-    id = generator.generate_id()
-    short_key = encode_base62(id)
-    repo.add(original_url=original_url, short_key=short_key, expired_at=expired_at)
-    return short_key

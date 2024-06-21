@@ -15,6 +15,7 @@ url = Table(
         "modified_at", DateTime, default=func.now(), onupdate=func.now(), nullable=False
     ),
     Column("expired_at", DateTime, nullable=True),
+    Column("views", Integer, default=0, nullable=False),
 )
 
 

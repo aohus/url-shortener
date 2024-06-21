@@ -37,17 +37,10 @@ class SqlAlchemyRepository(AbstractRepository):
                 )
         raise ValueError("No valid key found in kwargs")
 
-    def add(self, **kwargs: dict[str, Any]):
-        url_data = {
-            key: value for key, value in kwargs.items() if hasattr(model.URL, key)
-        }
-        if not url_data:
-            raise ValueError("No valid data provided to create a URL object")
-
-        new_url = model.URL(**url_data)
-        self.session.add(new_url)
+    def add(self, url: model.URL):
+        self.session.add(url)
         self.session.commit()
-        self.session.refresh(new_url)
+        self.session.refresh(url)
 
     def update(self, url: model.URL):
         self.session.commit()

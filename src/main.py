@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from adapters import orm
 from adapters.orm import metadata
 from adapters.repository import SqlAlchemyRepository
-from service_layer import services
+from service_layer.services import URLNotExist, URLService
 
 # Initialize logging
 orm.start_mappers()
@@ -62,6 +62,16 @@ class URLCreateResponse(BaseModel):
     short_url: str = Field(..., example="http://0.0.0.0:8000/abcd12")
 
 
+class URLStatsResponse(BaseModel):
+    short_key: str = Field(..., example="abcd12")
+    views: int = Field(..., example=123)
+
+
+def get_url_service(db: Session = Depends(get_db)) -> URLService:
+    repo = SqlAlchemyRepository(db)
+    return URLService(repo)
+
+
 # Endpoint to create a shortened URL
 @app.post(
     "/shorten",
@@ -69,9 +79,10 @@ class URLCreateResponse(BaseModel):
     summary="Create a shortened URL",
     description="Creates a new shortened URL with an optional expiration date.",
 )
-def create_short_url(request: URLCreateRequest, db: Session = Depends(get_db)):
-    repo = SqlAlchemyRepository(db)
-    short_key = services.generate_short_key(request.url, request.expired_at, repo)
+def create_short_url(
+    request: URLCreateRequest, services: URLService = Depends(get_url_service)
+):
+    short_key = services.generate_short_key(request.url, request.expired_at)
     short_url = f"http://0.0.0.0:8000/{short_key}"
     return URLCreateResponse(short_url=short_url)
 
@@ -82,10 +93,25 @@ def create_short_url(request: URLCreateRequest, db: Session = Depends(get_db)):
     summary="Redirect to original URL",
     description="Redirects to the original URL corresponding to the given short_key.",
 )
-def redirect_to_original(short_key: str, db: Session = Depends(get_db)):
-    repo = SqlAlchemyRepository(db)
+def redirect_to_original(
+    short_key: str, services: URLService = Depends(get_url_service)
+):
     try:
-        original_url = services.get_original_url(short_key, repo)
-    except services.URLNotExist as e:
+        original_url = services.get_original_url(short_key)
+    except URLNotExist as e:
         raise HTTPException(status_code=404, detail=str(e))
     return RedirectResponse(url=original_url, status_code=301)
+
+
+@app.get(
+    "/stats/{short_key}",
+    response_model=URLStatsResponse,
+    summary="Get URL stats",
+    description="Returns the number of times the shortened URL has been accessed.",
+)
+async def get_stats(short_key: str, services: URLService = Depends(get_url_service)):
+    try:
+        views = services.get_view_count(short_key)
+    except URLNotExist as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    return URLStatsResponse(short_key=short_key, views=views)
