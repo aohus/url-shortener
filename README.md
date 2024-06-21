@@ -25,7 +25,7 @@ URL 단축 서비스는 긴 URL을 단축하여 저장하고, 해당 단축된 U
 - 단축 URL의 조회 수 추적
 
 ### API 문서
-`http://0.0.0.0:8000/docs`에서 API 문서를 확인할 수 있습니다.
+[`http://0.0.0.0:8000/docs`](http://0.0.0.0:8000/docs)에서 API 문서를 확인할 수 있습니다.
 
 
 ## Database
@@ -52,7 +52,7 @@ cd url-shortener
 ```bash
 docker-compose up --build
 ```
-FastAPI 서버는 기본적으로 `http://0.0.0.0:8000`에서 실행됩니다.
+FastAPI 서버는 기본적으로 [`http://0.0.0.0:8000`](http://0.0.0.0:8000)에서 실행됩니다.
 
 3. 테스트 실행
 ```bash
