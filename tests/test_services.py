@@ -111,3 +111,17 @@ def test_get_original_url_after_expired(fake_repo, services):
     assert fake_repo.list()[0].short_key == short_key
     with pytest.raises(URLNotExist):
         services.get_original_url(short_key)
+
+
+def test_get_view_count(fake_repo, services):
+    original_url = "https://www.example.com"
+    short_key = "XYZ123"
+    new_url = model.URL(original_url=original_url, short_key=short_key, expired_at=None)
+    fake_repo.add(new_url)
+
+    # view 3 times
+    services.get_original_url(short_key)
+    services.get_original_url(short_key)
+    services.get_original_url(short_key)
+
+    assert services.get_view_count(short_key) == 3
