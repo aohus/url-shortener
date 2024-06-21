@@ -17,4 +17,10 @@ def test_repository_can_save_a_url(session):
     session.commit()
 
     rows = session.execute('SELECT original_url, short_key, expired_at FROM "url"')
-    assert list(rows) == [("https://www.example.com", "XYZ123", expired_at)]
+    assert list(rows) == [
+        (
+            "https://www.example.com",
+            "XYZ123",
+            expired_at.strftime("%Y-%m-%d %H:%M:%S.%f"),
+        )
+    ]
