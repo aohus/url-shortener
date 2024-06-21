@@ -3,41 +3,49 @@ from datetime import datetime
 import pytest
 from adapters import repository
 from domain import model
-from service_layer import services
+from service_layer.services import URLNotExist, URLService
+
+
+@pytest.fixture
+def fake_repo():
+    return FakeRepository([])
+
+
+@pytest.fixture
+def services(fake_repo):
+    return URLService(fake_repo)
 
 
 class FakeRepository(repository.AbstractRepository):
     def __init__(self, url):
-        self._url = list(url)
-
-    def add(self, **kwargs):
-        url_data = {
-            key: value
-            for key, value in kwargs.items()
-            if key
-            in ("original_url", "short_key", "created_at", "modified_at", "expired_at")
-        }
-        self._url.append(url_data)
+        self._urls = list(url)
 
     def get(self, **kwargs):
         for key, value in kwargs.items():
             if key in ("original_url", "short_key"):
                 url_data = [
                     e
-                    for e in self._url
-                    if e.get(key) == value
-                    and (
-                        e.get("expired_at") is None
-                        or e.get("expired_at") > datetime.utcnow()
-                    )
+                    for e in self._urls
+                    if getattr(e, key) == value
+                    and (e.expired_at is None or e.expired_at > datetime.utcnow())
                 ]
                 if url_data:
-                    return model.URL(**url_data[0])
+                    return url_data[0]
                 return None
         raise ValueError("No valid key found in kwargs")
 
+    def add(self, url: model.URL):
+        self._urls.append(url)
+
+    def update(self, url: model.URL) -> model.URL:
+        for i, existing_url in enumerate(self._urls):
+            if existing_url.short_key == url.short_key:
+                self._urls[i] = url
+                return url
+        raise ValueError("URL not found")
+
     def list(self):
-        return self._url
+        return self._urls
 
 
 class FakeSession:
@@ -47,59 +55,59 @@ class FakeSession:
         self.committed = True
 
 
-def test_generate_short_key():
-    repo = FakeRepository([])
+def test_generate_short_key(services):
     original_url = "https://www.example.com"
     expired_at = datetime.strptime("2024-12-31", "%Y-%m-%d")
-    short_key = services.generate_short_key(original_url, expired_at, repo)
+    short_key = services.generate_short_key(original_url, expired_at)
     assert short_key is not None
 
 
-def test_generate_short_key_if_expired_at_none():
-    repo = FakeRepository([])
+def test_generate_short_key_if_expired_at_none(services):
     original_url = "https://www.example.com"
     expired_at = None
-    short_key = services.generate_short_key(original_url, expired_at, repo)
+    short_key = services.generate_short_key(original_url, expired_at)
     assert short_key is not None
 
 
-def test_return_short_key_already_exist():
-    repo = FakeRepository([])
+def test_return_short_key_already_exist(fake_repo, services):
     original_url = "https://www.example.com"
     short_key = "XYZ123"
     expired_at = None
-    repo.add(original_url=original_url, short_key=short_key, expired_at=None)
-    short_key_response = services.generate_short_key(original_url, expired_at, repo)
+    new_url = model.URL(original_url=original_url, short_key=short_key, expired_at=None)
+    fake_repo.add(new_url)
+    short_key_response = services.generate_short_key(original_url, expired_at)
     assert short_key == short_key_response
-    assert len(repo.list()) == 1
+    assert len(fake_repo.list()) == 1
 
 
-def test_get_original_url():
-    repo = FakeRepository([])
+def test_get_original_url(fake_repo, services):
     original_url = "https://www.example.com"
     short_key = "XYZ123"
-    repo.add(original_url=original_url, short_key=short_key, expired_at=None)
-    original_url_response = services.get_original_url(short_key, repo)
+    new_url = model.URL(original_url=original_url, short_key=short_key, expired_at=None)
+    fake_repo.add(new_url)
+    original_url_response = services.get_original_url(short_key)
     assert original_url == original_url_response
 
 
-def test_get_original_url_if_not_exist():
-    repo = FakeRepository([])
+def test_get_original_url_if_not_exist(fake_repo, services):
     original_url = "https://www.example.com"
     short_key = "XYZ123"
-    repo.add(original_url=original_url, short_key=short_key, expired_at=None)
+    new_url = model.URL(original_url=original_url, short_key=short_key, expired_at=None)
+    fake_repo.add(new_url)
 
-    with pytest.raises(services.URLNotExist):
-        services.get_original_url("ABC123", repo)
+    with pytest.raises(URLNotExist):
+        services.get_original_url("ABC123")
 
 
-def test_get_original_url_after_expired():
-    repo = FakeRepository([])
+def test_get_original_url_after_expired(fake_repo, services):
     original_url = "https://www.example.com"
     short_key = "XYZ123"
-    expired_at = datetime.strptime("2024-06-19", "%Y-%m-%d")
-    repo.add(original_url=original_url, short_key=short_key, expired_at=expired_at)
+    expired_at = datetime.strptime("2024-06-10", "%Y-%m-%d")
+    new_url = model.URL(
+        original_url=original_url, short_key=short_key, expired_at=expired_at
+    )
+    fake_repo.add(new_url)
 
-    assert repo.list()[0].get("short_key") == short_key
-    with pytest.raises(services.URLNotExist):
-        services.get_original_url(short_key, repo)
+    assert fake_repo.list()[0].short_key == short_key
+    with pytest.raises(URLNotExist):
+        services.get_original_url(short_key)
