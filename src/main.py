@@ -2,11 +2,11 @@ from datetime import datetime
 from typing import Optional, Union
 
 import config
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field, HttpUrl, validator
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import Session, sessionmaker
 
 from adapters import orm
 from adapters.orm import metadata
@@ -26,6 +26,15 @@ app = FastAPI(
     description="API for shortening URLs and tracking their usage.",
     version="1.0.0",
 )
+
+
+# Dependency to get DB session
+def get_db():
+    db = get_session()
+    try:
+        yield db
+    finally:
+        db.close()
 
 
 class URLCreateRequest(BaseModel):
@@ -60,9 +69,8 @@ class URLCreateResponse(BaseModel):
     summary="Create a shortened URL",
     description="Creates a new shortened URL with an optional expiration date.",
 )
-def create_short_url(request: URLCreateRequest):
-    session = get_session()
-    repo = SqlAlchemyRepository(session)
+def create_short_url(request: URLCreateRequest, db: Session = Depends(get_db)):
+    repo = SqlAlchemyRepository(db)
     short_key = services.generate_short_key(request.url, request.expired_at, repo)
     short_url = f"http://0.0.0.0:8000/{short_key}"
     return URLCreateResponse(short_url=short_url)
@@ -74,9 +82,8 @@ def create_short_url(request: URLCreateRequest):
     summary="Redirect to original URL",
     description="Redirects to the original URL corresponding to the given short_key.",
 )
-def redirect_to_original(short_key: str):
-    session = get_session()
-    repo = SqlAlchemyRepository(session)
+def redirect_to_original(short_key: str, db: Session = Depends(get_db)):
+    repo = SqlAlchemyRepository(db)
     try:
         original_url = services.get_original_url(short_key, repo)
     except services.URLNotExist as e:
