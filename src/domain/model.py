@@ -19,6 +19,18 @@ class URL:
     def update_modified_at(self):
         self.modified_at = datetime.utcnow()
 
+    def __eq__(self, other):
+        if not isinstance(other, URL):
+            return False
+        return (
+            self.original_url == other.original_url
+            and self.short_key == other.short_key
+            and self.expired_at == other.expired_at
+        )
+
+    def __repr__(self):
+        return f"<URL(original_url={self.original_url}, short_key={self.short_key}, expired_at={self.expired_at})>"
+
 
 class IdGenerator:
     def __init__(self, node_id: int, epoch: int = 1609459200000):
