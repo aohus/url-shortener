@@ -6,4 +6,4 @@ def get_postgres_uri():
     port = 5432
     password = os.environ.get("DB_PASSWORD", "password")
     user = "postgres"
-    return f"postgresql://{user}:{password}@{host}:{port}/"
+    return f"postgresql+asyncpg://{user}:{password}@{host}:{port}/"

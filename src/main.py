@@ -1,13 +1,13 @@
 from datetime import datetime
 from typing import Optional, Union
 
-import config
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field, HttpUrl, validator
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.orm import sessionmaker
 
+import config
 from adapters import orm
 from adapters.orm import metadata
 from adapters.repository import SqlAlchemyRepository
@@ -16,9 +16,9 @@ from service_layer.services import URLNotExist, URLService
 # Initialize logging
 orm.start_mappers()
 
-engine = create_engine(config.get_postgres_uri())
-get_session = sessionmaker(bind=engine)
-metadata.create_all(engine)
+engine = create_async_engine(config.get_postgres_uri(), echo=True)
+async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -28,13 +28,25 @@ app = FastAPI(
 )
 
 
-# Dependency to get DB session
-def get_db():
-    db = get_session()
-    try:
-        yield db
-    finally:
-        db.close()
+@app.on_event("startup")
+async def startup_event():
+    async with engine.begin() as conn:
+        await conn.run_sync(metadata.create_all)
+
+
+# 의존성 주입을 위한 세션 생성 함수
+async def get_db() -> AsyncSession:
+    async with async_session() as session:
+        try:
+            yield session
+        finally:
+            await session.close()
+
+
+# URLService 인스턴스 생성 함수
+def get_url_service(db: AsyncSession = Depends(get_db)) -> URLService:
+    repo = SqlAlchemyRepository(db)
+    return URLService(repo)
 
 
 class URLCreateRequest(BaseModel):
@@ -67,11 +79,6 @@ class URLStatsResponse(BaseModel):
     views: int = Field(..., example=123)
 
 
-def get_url_service(db: Session = Depends(get_db)) -> URLService:
-    repo = SqlAlchemyRepository(db)
-    return URLService(repo)
-
-
 # Endpoint to create a shortened URL
 @app.post(
     "/shorten",
@@ -79,10 +86,10 @@ def get_url_service(db: Session = Depends(get_db)) -> URLService:
     summary="Create a shortened URL",
     description="Creates a new shortened URL with an optional expiration date.",
 )
-def create_short_url(
+async def create_short_url(
     request: URLCreateRequest, services: URLService = Depends(get_url_service)
 ):
-    short_key = services.generate_short_key(request.url, request.expired_at)
+    short_key = await services.generate_short_key(request.url, request.expired_at)
     short_url = f"http://0.0.0.0:8000/{short_key}"
     return URLCreateResponse(short_url=short_url)
 
@@ -93,11 +100,11 @@ def create_short_url(
     summary="Redirect to original URL",
     description="Redirects to the original URL corresponding to the given short_key.",
 )
-def redirect_to_original(
+async def redirect_to_original(
     short_key: str, services: URLService = Depends(get_url_service)
 ):
     try:
-        original_url = services.get_original_url(short_key)
+        original_url = await services.get_original_url(short_key)
     except URLNotExist as e:
         raise HTTPException(status_code=404, detail=str(e))
     return RedirectResponse(url=original_url, status_code=301)
@@ -111,7 +118,7 @@ def redirect_to_original(
 )
 async def get_stats(short_key: str, services: URLService = Depends(get_url_service)):
     try:
-        views = services.get_view_count(short_key)
+        views = await services.get_view_count(short_key)
     except URLNotExist as e:
         raise HTTPException(status_code=404, detail=str(e))
     return URLStatsResponse(short_key=short_key, views=views)
