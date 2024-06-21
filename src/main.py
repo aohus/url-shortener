@@ -4,7 +4,7 @@ from typing import Optional, Union
 import config
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import RedirectResponse
-from pydantic import BaseModel, HttpUrl, validator
+from pydantic import BaseModel, Field, HttpUrl, validator
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -21,12 +21,18 @@ get_session = sessionmaker(bind=engine)
 metadata.create_all(engine)
 
 # Initialize FastAPI app
-app = FastAPI()
+app = FastAPI(
+    title="URL Shortener API",
+    description="API for shortening URLs and tracking their usage.",
+    version="1.0.0",
+)
 
 
 class URLCreateRequest(BaseModel):
-    url: HttpUrl
-    expired_at: Optional[Union[datetime, str]] = None
+    url: HttpUrl = Field(..., example="https://www.naver.com")
+    expired_at: Optional[Union[datetime, str]] = Field(
+        None, example="2024-06-30T05:47:41"
+    )
 
     @validator("expired_at", pre=True, always=True)
     def parse_expired_at(cls, v):
@@ -44,11 +50,16 @@ class URLCreateRequest(BaseModel):
 
 
 class URLCreateResponse(BaseModel):
-    short_url: str
+    short_url: str = Field(..., example="http://0.0.0.0:8000/abcd12")
 
 
 # Endpoint to create a shortened URL
-@app.post("/shorten", response_model=URLCreateResponse)
+@app.post(
+    "/shorten",
+    response_model=URLCreateResponse,
+    summary="Create a shortened URL",
+    description="Creates a new shortened URL with an optional expiration date.",
+)
 def create_short_url(request: URLCreateRequest):
     session = get_session()
     repo = SqlAlchemyRepository(session)
@@ -58,7 +69,11 @@ def create_short_url(request: URLCreateRequest):
 
 
 # Endpoint to redirect to the original URL
-@app.get("/{short_key}")
+@app.get(
+    "/{short_key}",
+    summary="Redirect to original URL",
+    description="Redirects to the original URL corresponding to the given short_key.",
+)
 def redirect_to_original(short_key: str):
     session = get_session()
     repo = SqlAlchemyRepository(session)
