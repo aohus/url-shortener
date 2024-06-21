@@ -1,5 +1,13 @@
 version: "3"
 services:
+  postgres:
+    image: postgres:9.6
+    environment:
+      - POSTGRES_USER=${DB_HOST}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+    ports:
+      - "5432:5432"
+
   app:
     build:
       context: .
@@ -11,12 +19,8 @@ services:
       - DB_PASSWORD=${DB_PASSWORD}
     ports:
       - "8000:8000"
+    entrypoint: ["/app/wait-for-it.sh", "postgres:5432", "--"]
+    command: ["poetry", "run", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
 
 
-  postgres:
-    image: postgres:9.6
-    environment:
-      - POSTGRES_USER=${DB_HOST}
-      - POSTGRES_PASSWORD=${DB_PASSWORD}
-    ports:
-      - "54321:5432"
+

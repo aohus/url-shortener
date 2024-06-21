@@ -8,15 +8,14 @@ RUN pip install poetry
 WORKDIR /app
 
 # Copy the pyproject.toml and poetry.lock files
-COPY pyproject.toml poetry.lock .env config.py ./
+COPY pyproject.toml poetry.lock ./
+COPY .env config.py wait-for-it.sh ./
 
 # Install the dependencies
 RUN poetry install --no-root
+RUN chmod +x wait-for-it.sh
 
 # Copy the application code into the container
 COPY src/ ./
 # Expose the port the app runs on
 EXPOSE 8000
-
-# Run the FastAPI application
-CMD ["poetry", "run", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
