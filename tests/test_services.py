@@ -1,8 +1,11 @@
+import asyncio
 from datetime import datetime
+from typing import Dict, Optional
 
 import pytest
 
-from adapters import repository
+from adapters.cache import RedisCache
+from adapters.repository import AbstractRepository
 from domain import model
 from service_layer.services import URLNotExist, URLService
 
@@ -13,11 +16,67 @@ def fake_repo():
 
 
 @pytest.fixture
-def services(fake_repo):
-    return URLService(fake_repo)
+def fake_redis():
+    return FakeRedis()
 
 
-class FakeRepository(repository.AbstractRepository):
+@pytest.fixture
+def cache(fake_redis):
+    return RedisCache(fake_redis)
+
+
+@pytest.fixture
+def services(fake_repo, cache):
+    return URLService(fake_repo, cache)
+
+
+class FakeRedis:
+    def __init__(self):
+        self.storage: Dict[str, str] = {}
+        self.expirations: Dict[str, int] = {}
+
+    async def get(self, key: str) -> Optional[str]:
+        if (
+            key in self.expirations
+            and self.expirations[key] < asyncio.get_event_loop().time()
+        ):
+            del self.storage[key]
+            del self.expirations[key]
+            return None
+        return self.storage.get(key, None)
+
+    async def set(self, key: str, value: str, ex: Optional[int] = None):
+        self.storage[key] = str(value).encode("utf-8")
+        if ex is not None:
+            self.expirations[key] = asyncio.get_event_loop().time() + ex
+
+    async def expire(self, key: str, ex: int):
+        if key in self.storage:
+            self.expirations[key] = asyncio.get_event_loop().time() + ex
+
+    async def delete(self, key: str):
+        if key in self.storage:
+            del self.storage[key]
+        if key in self.expirations:
+            del self.expirations[key]
+
+    async def incr(self, key: str):
+        if key in self.storage:
+            self.storage[key] = str(int(self.storage[key]) + 1)
+        else:
+            self.storage[key] = "1"
+        return int(self.storage[key])
+
+    async def pipeline(self, transaction: bool = True):
+        return self
+
+    async def execute(self):
+        # In real redis, this executes all commands in the pipeline.
+        # In this fake version, commands are executed immediately.
+        pass
+
+
+class FakeRepository(AbstractRepository):
     def __init__(self, urls):
         self._urls = list(urls)
 
@@ -127,9 +186,9 @@ async def test_get_view_count(fake_repo, services):
     new_url = model.URL(original_url=original_url, short_key=short_key, expired_at=None)
     await fake_repo.add(new_url)
 
-    # view 3 times
+    # view 4 times
     await services.get_original_url(short_key)
     await services.get_original_url(short_key)
     await services.get_original_url(short_key)
-
-    assert await services.get_view_count(short_key) == 3
+    await services.get_original_url(short_key)
+    assert await services.get_view_count(short_key) == 4
