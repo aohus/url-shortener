@@ -4,11 +4,13 @@ from typing import Optional, Union
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field, HttpUrl, validator
+from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
 import config
 from adapters import orm
+from adapters.cache import RedisCache
 from adapters.orm import metadata
 from adapters.repository import SqlAlchemyRepository
 from service_layer.services import URLNotExist, URLService
@@ -18,7 +20,7 @@ orm.start_mappers()
 
 engine = create_async_engine(config.get_postgres_uri(), echo=True)
 async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
-
+redis_client = Redis.from_url(config.get_redis_uri())
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -46,7 +48,8 @@ async def get_db() -> AsyncSession:
 # URLService 인스턴스 생성 함수
 def get_url_service(db: AsyncSession = Depends(get_db)) -> URLService:
     repo = SqlAlchemyRepository(db)
-    return URLService(repo)
+    redis = RedisCache(redis_client)
+    return URLService(repo, redis)
 
 
 class URLCreateRequest(BaseModel):
