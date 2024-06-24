@@ -8,6 +8,11 @@ services:
     ports:
       - "5432:5432"
 
+  redis:
+    image: redis:latest
+    ports:
+      - "6379:6379"
+
   app:
     build:
       context: .
@@ -17,9 +22,10 @@ services:
     environment:
       - DB_HOST=${DB_HOST}
       - DB_PASSWORD=${DB_PASSWORD}
+      - REDIS_HOST=redis
     ports:
       - "8000:8000"
-    entrypoint: ["/app/wait-for-it.sh", "postgres:5432", "--"]
+    entrypoint: ["/app/wait-for-it.sh", "postgres:5432", "--", "redis:6379", "--"]
     command: ["poetry", "run", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
 
 
